@@ -1,0 +1,48 @@
+--===[ QueueOnTeleport Loader Optimized ]===--
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
+local SCRIPT_URL = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/StealA_UGC"
+
+-- 1. Hỗ trợ nhiều loại Executor khác nhau cho QueueOnTeleport
+local queue_teleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+
+if queue_teleport then
+    queue_teleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
+end
+
+-- 2. Anti-AFK (Cải tiến để tránh bị phát hiện)
+lp.Idled:Connect(function()
+    game:GetService("VirtualUser"):CaptureController()
+    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+end)
+
+-- 3. Anti-Kick & Auto Reconnect (Chống văng game)
+-- Xử lý khi có bảng thông báo lỗi (Server đóng, mất mạng, v.v.)
+game:GetService("GuiService").ErrorMessageChanged:Connect(function()
+    task.wait()
+    TeleportService:Teleport(game.PlaceId, lp)
+end)
+
+-- 4. Chống bị Admin/Server Kick (Anti-Kick)
+-- Khi bị Kick, thay vì thoát game, nó sẽ tự động Teleport lại server khác
+local oldMT = getrawmetatable(game)
+setreadonly(oldMT, false)
+local oldNamecall = oldMT.__namecall
+
+oldMT.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if method == "Kick" or method == "kick" then
+        task.spawn(function()
+            TeleportService:Teleport(game.PlaceId, lp)
+        end)
+        return nil -- Chặn lệnh Kick không cho thực thi
+    end
+    
+    return oldNamecall(self, unpack(args))
+end)
+setreadonly(oldMT, true)
+
+print("Loader đã sẵn sàng - Anti-Kick & AFK Active")
