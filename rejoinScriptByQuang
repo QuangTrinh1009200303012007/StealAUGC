@@ -1,6 +1,6 @@
 --[[
-    --===[ QueueOnTeleport Loader + Anti-Kick + UI ]===--
-    Tính năng: Auto Load Script, Chống văng game, Chống AFK, Chống Kick, Thông báo UI.
+    --===[ QueueOnTeleport Loader + Anti-Kick + UI (Optimized) ]===--
+    Tính năng: Tối ưu hóa phản hồi UI, Chống văng, Chống AFK, Chống Kick an toàn.
 ]]
 
 local TeleportService = game:GetService("TeleportService")
@@ -12,7 +12,7 @@ local CoreGui = game:GetService("CoreGui")
 local lp = Players.LocalPlayer
 local SCRIPT_URL = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinScriptByQuang"
 
--- 1. Hỗ trợ QueueOnTeleport (Chạy script sau khi đổi server)
+-- 1. Hỗ trợ QueueOnTeleport (An toàn)
 local queue_teleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
 if queue_teleport then
     pcall(function()
@@ -20,38 +20,37 @@ if queue_teleport then
     end)
 end
 
--- 2. Anti-AFK (Ngăn bị văng do treo máy)
-lp.Idled:Connect(function()
-    VirtualUser:CaptureController()
-    VirtualUser:ClickButton2(Vector2.new())
-end)
+-- 2. Anti-AFK (Giữ nguyên logic cũ)
+if lp then
+    lp.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+end
 
--- 3. Chống văng game khi có lỗi Server/Mất mạng
+-- 3. Chống văng game (Tự Reconnect)
 GuiService.ErrorMessageChanged:Connect(function()
     task.wait()
     TeleportService:Teleport(game.PlaceId, lp)
 end)
 
--- 4. Anti-Kick (Chặn lệnh Kick từ Server và tự Reconnect)
-local oldMT = getrawmetatable(game)
-setreadonly(oldMT, false)
-local oldNamecall = oldMT.__namecall
-
-oldMT.__namecall = newcclosure(function(self, ...)
+-- 4. Anti-Kick (Sử dụng Hookmetamethod để tránh đơ UI/Chuột)
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
     local method = getnamecallmethod()
-    if method == "Kick" or method == "kick" then
+    local args = {...}
+    
+    if not checkcaller() and (method == "Kick" or method == "kick") then
         task.spawn(function()
             TeleportService:Teleport(game.PlaceId, lp)
         end)
-        return nil
+        return nil -- Chặn lệnh kick từ server
     end
-    return oldNamecall(self, unpack({...}))
+    return oldNamecall(self, unpack(args))
 end)
-setreadonly(oldMT, true)
 
--- 5. Hàm tạo TextLabel thông báo giữa màn hình
+-- 5. Hàm tạo UI thông báo (Đã sửa lỗi chặn chuột)
 local function ShowStatus(text)
-    -- Xóa UI cũ nếu có
     if CoreGui:FindFirstChild("NotifyStatus") then
         CoreGui.NotifyStatus:Destroy()
     end
@@ -60,13 +59,15 @@ local function ShowStatus(text)
     screenGui.Name = "NotifyStatus"
     screenGui.Parent = CoreGui
     screenGui.IgnoreGuiInset = true
+    screenGui.DisplayOrder = 999 -- Luôn nằm trên cùng
 
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 300, 0, 60)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -30) -- Giữa màn hình
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -30)
     mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     mainFrame.BackgroundTransparency = 0.2
     mainFrame.BorderSizePixel = 0
+    mainFrame.Active = false -- QUAN TRỌNG: Không chặn chuột
     mainFrame.Parent = screenGui
 
     local corner = Instance.new("UICorner")
@@ -85,21 +86,30 @@ local function ShowStatus(text)
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
     label.TextSize = 18
     label.Font = Enum.Font.GothamBold
+    label.Active = false -- QUAN TRỌNG: Không chặn chuột
     label.Parent = mainFrame
 
-    -- Hiệu ứng tắt dần sau 4 giây
+    -- Hiệu ứng tắt dần sau 4 giây (Giữ nguyên yêu cầu)
     task.delay(4, function()
         for i = 0.2, 1, 0.1 do
+            if not mainFrame then break end
             mainFrame.BackgroundTransparency = i
             label.TextTransparency = (i - 0.2) * 1.25
             task.wait(0.05)
         end
-        screenGui:Destroy()
+        if screenGui then screenGui:Destroy() end
     end)
 end
 
 -- Kích hoạt thông báo
-ShowStatus("ĐÃ BẬT ANTI-KICK & REJOIN KHI VĂNG")
+ShowStatus("ĐÃ BẬT ANTI-KICK & REJOIN")
 
--- Thực thi script chính lần đầu
-loadstring(game:HttpGet(SCRIPT_URL))()
+-- 6. Thực thi script chính (Dùng task.spawn để không làm treo code phía trên)
+task.spawn(function()
+    local success, err = pcall(function()
+        loadstring(game:HttpGet(SCRIPT_URL))()
+    end)
+    if not success then
+        warn("Lỗi khi tải script chính: " .. tostring(err))
+    end
+end)
