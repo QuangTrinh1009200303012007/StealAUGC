@@ -1,3 +1,8 @@
+--[[
+    --===[ Full Clean UI + Anti-Kick + Badge Notify ]===--
+    Xóa sạch thông báo giữa màn hình, chỉ giữ Badge góc dưới phải.
+]]
+
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
@@ -8,21 +13,29 @@ local TweenService = game:GetService("TweenService")
 local lp = Players.LocalPlayer
 local SCRIPT_URL = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinScriptByQuang"
 
--- HÀM CHỈ HIỂN THỊ Ở GÓC DƯỚI PHẢI
-local function ShowBadgeStatus(titleText, descText)
-    if CoreGui:FindFirstChild("BadgeNotify") then CoreGui.BadgeNotify:Destroy() end
+pcall(function()
+    if QueueOnTeleport then
+        QueueOnTeleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
+    end
+end)
 
+----------------------------------------------------------------
+-- 2. HÀM TẠO THÔNG BÁO BADGE (CHỈ GÓC DƯỚI PHẢI)
+----------------------------------------------------------------
+local function ShowBadgeStatus(titleText, descText)
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "BadgeNotify"
     screenGui.Parent = CoreGui
     screenGui.DisplayOrder = 999
+    screenGui.IgnoreGuiInset = true
 
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 300, 0, 75)
-    mainFrame.Position = UDim2.new(1, 20, 1, -100) -- Bắt đầu ở ngoài màn hình (bên phải)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    mainFrame.BackgroundTransparency = 0.1
+    mainFrame.Position = UDim2.new(1, 20, 1, -100) -- Vị trí ẩn bên phải
+    mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    mainFrame.BackgroundTransparency = 0.15
     mainFrame.BorderSizePixel = 0
+    mainFrame.Active = false -- Không chặn chuột
     mainFrame.Parent = screenGui
 
     local corner = Instance.new("UICorner")
@@ -31,12 +44,12 @@ local function ShowBadgeStatus(titleText, descText)
 
     local stroke = Instance.new("UIStroke")
     stroke.Color = Color3.fromRGB(0, 170, 255)
-    stroke.Thickness = 2
+    stroke.Thickness = 1.5
     stroke.Parent = mainFrame
 
     local icon = Instance.new("ImageLabel")
-    icon.Size = UDim2.new(0, 50, 0, 50)
-    icon.Position = UDim2.new(0, 12, 0.5, -25)
+    icon.Size = UDim2.new(0, 48, 0, 48)
+    icon.Position = UDim2.new(0, 12, 0.5, -24)
     icon.BackgroundTransparency = 1
     icon.Image = "rbxassetid://6023426926"
     icon.ImageColor3 = Color3.fromRGB(0, 170, 255)
@@ -48,7 +61,7 @@ local function ShowBadgeStatus(titleText, descText)
     title.BackgroundTransparency = 1
     title.Text = titleText:upper()
     title.TextColor3 = Color3.fromRGB(180, 180, 180)
-    title.TextSize = 13
+    title.TextSize = 12
     title.Font = Enum.Font.GothamBold
     title.TextXAlignment = Enum.TextXAlignment.Left
     title.Parent = mainFrame
@@ -59,30 +72,39 @@ local function ShowBadgeStatus(titleText, descText)
     label.BackgroundTransparency = 1
     label.Text = descText
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 15
+    label.TextSize = 14
     label.Font = Enum.Font.GothamMedium
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.TextWrapped = true
     label.Parent = mainFrame
 
-    -- Tween trượt vào từ phải sang trái
+    -- Hiệu ứng trượt
     TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
         Position = UDim2.new(1, -320, 1, -100)
     }):Play()
 
     task.delay(4, function()
-        local t = TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-            Position = UDim2.new(1, 20, 1, -100)
-        })
-        t:Play()
-        t.Completed:Connect(function() screenGui:Destroy() end)
+        if mainFrame then
+            local t = TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                Position = UDim2.new(1, 20, 1, -100)
+            })
+            t:Play()
+            t.Completed:Connect(function() screenGui:Destroy() end)
+        end
     end)
 end
 
--- Chạy thông báo
-ShowBadgeStatus("Hệ Thống", "Đã kích hoạt Anti-Kick & Rejoin.")
+-- Hiển thị Badge mới
+ShowBadgeStatus("Hệ Thống", "Đã dọn dẹp UI cũ và bật Anti-Kick.")
 
--- Các logic ngầm khác (Anti-AFK, Rejoin...)
+----------------------------------------------------------------
+-- 3. LOGIC HỆ THỐNG
+----------------------------------------------------------------
+local queue_teleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+if queue_teleport then
+    pcall(function() queue_teleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()") end)
+end
+
 if lp then
     lp.Idled:Connect(function()
         VirtualUser:CaptureController()
@@ -91,9 +113,6 @@ if lp then
 end
 
 GuiService.ErrorMessageChanged:Connect(function()
-    task.wait(0)
+    task.wait()
     TeleportService:Teleport(game.PlaceId, lp)
 end)
-
-    pcall(function() loadstring(game:HttpGet(SCRIPT_URL))() end)
-
