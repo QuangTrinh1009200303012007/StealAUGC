@@ -94,7 +94,7 @@ local function CreateUI()
 
     local t = Instance.new("TextLabel", main)
     t.Size = UDim2.new(1, 0, 0, 40)
-    t.Text = "S-SCRIPTS V3 (COMPACT)"
+    t.Text = "Support Script V1"
     t.BackgroundColor3 = Color3.fromRGB(142, 68, 173)
     t.TextColor3 = Color3.fromRGB(255, 255, 255)
     t.Font = Enum.Font.GothamBold
