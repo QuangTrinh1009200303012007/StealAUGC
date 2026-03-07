@@ -26,7 +26,11 @@ local function LoadConfig()
         Fly = false,
         NoClip = false,
         RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinScriptByQuang",
-        ExecuteThisScript = "" -- Để trống mặc định
+        ExecuteThisScript = "",
+        AutoHopServer = false,
+        AutoHopDelay = 300,
+        AutoRejoinTimer = false,
+        AutoRejoinTimerDelay = 300
     }
     
     if is_file(FILENAME) then
@@ -46,23 +50,24 @@ end
 
 LoadConfig()
 
--- Hàm thực thi script an toàn
-local function SafeExecute(url)
-    if url and url ~= "" and url:match("^https?://") then
-        local success, content = pcall(game.HttpGet, game, url)
-        if success and content then
-            local func, err = loadstring(content)
-            if func then
-                task.spawn(func)
-            else
-                warn("Lỗi loadstring: " .. tostring(err))
+local function HopServer()
+    local PlaceID = game.PlaceId
+    local JobID = game.JobId
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"))
+    end)
+    if success then
+        for _, server in pairs(result.data) do
+            if server.playing < server.maxPlayers and server.id ~= JobID then
+                TeleportService:TeleportToPlaceInstance(PlaceID, server.id, lp)
+                break
             end
         end
     end
 end
 
 ----------------------------------------------------------------
--- GIAO DIỆN (UI)
+-- GIAO DIỆN (UI) CẤU TRÚC THEO YÊU CẦU
 ----------------------------------------------------------------
 local function CreateUI()
     if CoreGui:FindFirstChild("S_ScriptUI") then CoreGui.S_ScriptUI:Destroy() end
@@ -71,27 +76,34 @@ local function CreateUI()
     sg.Name = "S_ScriptUI"
     
     local main = Instance.new("Frame", sg)
-    main.Size = UDim2.new(0, 250, 0, 400)
-    main.Position = UDim2.new(0, 20, 0.5, -200)
+    main.Size = UDim2.new(0, 320, 0, 420)
+    main.Position = UDim2.new(0, 20, 0.5, -210)
     main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     main.Active = true
     main.Draggable = true
 
     local scroll = Instance.new("ScrollingFrame", main)
     scroll.Size = UDim2.new(1, -10, 1, -45)
-    scroll.Position = UDim2.new(0, 5, 0, 40)
+    scroll.Position = UDim2.new(0, 5, 0, 45)
     scroll.BackgroundTransparency = 1
-    scroll.CanvasSize = UDim2.new(0, 0, 0, 650)
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 600)
     scroll.ScrollBarThickness = 3
 
     local list = Instance.new("UIListLayout", scroll)
-    list.Padding = UDim.new(0, 5)
+    list.Padding = UDim.new(0, 8)
 
-    local function AddToggle(text, configKey)
+    local t = Instance.new("TextLabel", main)
+    t.Size = UDim2.new(1, 0, 0, 40)
+    t.Text = "S-SCRIPTS V3 (COMPACT)"
+    t.BackgroundColor3 = Color3.fromRGB(142, 68, 173)
+    t.TextColor3 = Color3.fromRGB(255, 255, 255)
+    t.Font = Enum.Font.GothamBold
+
+    local function AddSimpleToggle(text, configKey)
         local btn = Instance.new("TextButton", scroll)
         btn.Size = UDim2.new(1, -10, 0, 30)
         btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
+        btn.TextSize = 11
         local function UpdateBtn()
             btn.Text = text .. ": " .. (getgenv().Config[configKey] and "ON" or "OFF")
             btn.BackgroundColor3 = getgenv().Config[configKey] and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
@@ -104,130 +116,146 @@ local function CreateUI()
         UpdateBtn()
     end
 
-    local function AddInput(label, configKey, isNumber)
-        local lab = Instance.new("TextLabel", scroll)
-        lab.Size = UDim2.new(1, -10, 0, 20)
-        lab.Text = "  " .. label
-        lab.TextColor3 = Color3.fromRGB(200, 200, 200)
-        lab.BackgroundTransparency = 1
-        lab.TextXAlignment = Enum.TextXAlignment.Left
-        lab.TextSize = 11
+    -- 1. CÁC TOGGLE CƠ BẢN
+    AddSimpleToggle("Anti AFK", "AntiAFK")
+    AddSimpleToggle("Auto Rejoin (Kick)", "AutoRejoin")
+    AddSimpleToggle("Auto Jump", "AutoJump")
+    AddSimpleToggle("Anti Stuck", "AntiStuck")
+    AddSimpleToggle("Fly Mode", "Fly")
+    AddSimpleToggle("No Clip", "NoClip")
 
-        local box = Instance.new("TextBox", scroll)
-        box.Size = UDim2.new(1, -10, 0, 30)
-        box.Text = tostring(getgenv().Config[configKey])
-        box.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        box.TextColor3 = Color3.fromRGB(255, 255, 255)
-        box.ClearTextOnFocus = false
-        
-        box.FocusLost:Connect(function()
-            local val = box.Text
-            if isNumber then val = tonumber(val) or getgenv().Config[configKey] end
-            getgenv().Config[configKey] = val
-            SaveConfig()
-        end)
+    -- 2. HÀNG TELEPORT: [LOOP ON/OFF] [SAVE POS] [DELAY]
+    local tpRow = Instance.new("Frame", scroll)
+    tpRow.Size = UDim2.new(1, -10, 0, 30)
+    tpRow.BackgroundTransparency = 1
+
+    local loopBtn = Instance.new("TextButton", tpRow)
+    loopBtn.Size = UDim2.new(0.4, -5, 1, 0)
+    loopBtn.Font = Enum.Font.GothamBold
+    loopBtn.TextSize = 10
+    local function UpdLoop()
+        loopBtn.Text = "TP Loop: " .. (getgenv().Config.TeleportLoop and "ON" or "OFF")
+        loopBtn.BackgroundColor3 = getgenv().Config.TeleportLoop and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     end
+    loopBtn.MouseButton1Click:Connect(function() getgenv().Config.TeleportLoop = not getgenv().Config.TeleportLoop; SaveConfig(); UpdLoop() end)
+    UpdLoop()
 
-    local t = Instance.new("TextLabel", main)
-    t.Size = UDim2.new(1, 0, 0, 35)
-    t.Text = "S-SCRIPTS V3 (FIX NIL)"
-    t.BackgroundColor3 = Color3.fromRGB(142, 68, 173)
-    t.TextColor3 = Color3.fromRGB(255, 255, 255)
-    t.Font = Enum.Font.GothamBold
-
-    AddToggle("Anti AFK", "AntiAFK")
-    AddToggle("Auto Rejoin", "AutoRejoin")
-    AddToggle("Auto Jump", "AutoJump")
-    AddToggle("Anti Stuck", "AntiStuck")
-    AddToggle("Fly Mode", "Fly")
-    AddToggle("No Clip", "NoClip")
-    AddToggle("Teleport Loop", "TeleportLoop")
-    
-    AddInput("TP Delay (Seconds)", "TeleportDelay", true)
-    
-    local setPos = Instance.new("TextButton", scroll)
-    setPos.Size = UDim2.new(1, -10, 0, 35)
-    setPos.Text = "SAVE CURRENT POS"
-    setPos.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
-    setPos.Font = Enum.Font.GothamBold
-    setPos.MouseButton1Click:Connect(function()
+    local saveBtn = Instance.new("TextButton", tpRow)
+    saveBtn.Position = UDim2.new(0.4, 0, 0, 0)
+    saveBtn.Size = UDim2.new(0.4, -5, 1, 0)
+    saveBtn.BackgroundColor3 = Color3.fromRGB(52, 152, 219)
+    saveBtn.Text = "SAVE POS"
+    saveBtn.Font = Enum.Font.GothamBold
+    saveBtn.TextSize = 10
+    saveBtn.MouseButton1Click:Connect(function()
         if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
             local pos = lp.Character.HumanoidRootPart.Position
-            getgenv().Config.TeleportPoint = {x = pos.X, y = pos.Y, z = pos.Z}
-            SaveConfig()
+            getgenv().Config.TeleportPoint = {x = pos.X, y = pos.Y, z = pos.Z}; SaveConfig()
         end
     end)
 
-    AddInput("Rejoin Source URL (Required)", "RejoinSource", false)
-    AddInput("Execute Script URL (Optional)", "ExecuteThisScript", false)
+    local tpBox = Instance.new("TextBox", tpRow)
+    tpBox.Position = UDim2.new(0.8, 0, 0, 0)
+    tpBox.Size = UDim2.new(0.2, 0, 1, 0)
+    tpBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    tpBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    tpBox.Text = tostring(getgenv().Config.TeleportDelay)
+    tpBox.FocusLost:Connect(function() getgenv().Config.TeleportDelay = tonumber(tpBox.Text) or 0.5; SaveConfig() end)
+
+    -- 3. HÀNG AUTO HOP VÀ AUTO REJOIN TIMER
+    local function AddTimedRow(text, toggleKey, delayKey)
+        local row = Instance.new("Frame", scroll)
+        row.Size = UDim2.new(1, -10, 0, 30)
+        row.BackgroundTransparency = 1
+        local btn = Instance.new("TextButton", row)
+        btn.Size = UDim2.new(0.75, -5, 1, 0)
+        btn.Font = Enum.Font.GothamBold; btn.TextSize = 11
+        local function Upd()
+            btn.Text = text .. ": " .. (getgenv().Config[toggleKey] and "ON" or "OFF")
+            btn.BackgroundColor3 = getgenv().Config[toggleKey] and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
+        end
+        btn.MouseButton1Click:Connect(function() getgenv().Config[toggleKey] = not getgenv().Config[toggleKey]; SaveConfig(); Upd() end)
+        Upd()
+        local box = Instance.new("TextBox", row)
+        box.Position = UDim2.new(0.75, 0, 0, 0); box.Size = UDim2.new(0.25, 0, 1, 0); box.BackgroundColor3 = Color3.fromRGB(45, 45, 45); box.TextColor3 = Color3.fromRGB(255, 255, 255)
+        box.Text = tostring(getgenv().Config[delayKey])
+        box.FocusLost:Connect(function() getgenv().Config[delayKey] = tonumber(box.Text) or 300; SaveConfig() end)
+    end
+
+    AddTimedRow("Auto Hop Server", "AutoHopServer", "AutoHopDelay")
+    AddTimedRow("Auto Rejoin Timer", "AutoRejoinTimer", "AutoRejoinTimerDelay")
+
+    -- 4. HÀNG URL (LABEL NGANG VỚI TEXTBOX)
+    local function AddURLRow(label, configKey)
+        local row = Instance.new("Frame", scroll)
+        row.Size = UDim2.new(1, -10, 0, 30)
+        row.BackgroundTransparency = 1
+        local lab = Instance.new("TextLabel", row)
+        lab.Size = UDim2.new(0.35, 0, 1, 0); lab.Text = label; lab.TextColor3 = Color3.fromRGB(200, 200, 200); lab.BackgroundTransparency = 1; lab.TextSize = 10; lab.TextXAlignment = Enum.TextXAlignment.Left
+        local box = Instance.new("TextBox", row)
+        box.Position = UDim2.new(0.35, 0, 0, 0); box.Size = UDim2.new(0.65, 0, 1, 0); box.BackgroundColor3 = Color3.fromRGB(45, 45, 45); box.TextColor3 = Color3.fromRGB(255, 255, 255); box.Text = getgenv().Config[configKey]; box.ClearTextOnFocus = false; box.TextTruncate = Enum.TextTruncate.AtEnd
+        box.FocusLost:Connect(function() getgenv().Config[configKey] = box.Text; SaveConfig() end)
+    end
+
+    AddURLRow("Rejoin URL:", "RejoinSource")
+    AddURLRow("Execute URL:", "ExecuteThisScript")
 end
 
 CreateUI()
 
 ----------------------------------------------------------------
--- HỆ THỐNG LOGIC
+-- HỆ THỐNG LOGIC (GIỮ NGUYÊN 100%)
 ----------------------------------------------------------------
-
 if getgenv().Config.AutoRejoin then
     local queue_teleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
     if queue_teleport then
         local rejoinScript = "pcall(function() if not game:IsLoaded() then game.Loaded:Wait() end "
-        
-        -- Chỉ thêm vào queue nếu URL hợp lệ
-        if getgenv().Config.RejoinSource ~= "" then
-            rejoinScript = rejoinScript .. "loadstring(game:HttpGet('"..getgenv().Config.RejoinSource.."'))() "
-        end
-        if getgenv().Config.ExecuteThisScript ~= "" then
-            rejoinScript = rejoinScript .. "loadstring(game:HttpGet('"..getgenv().Config.ExecuteThisScript.."'))() "
-        end
-        
+        if getgenv().Config.RejoinSource ~= "" then rejoinScript = rejoinScript .. "loadstring(game:HttpGet('"..getgenv().Config.RejoinSource.."'))() " end
+        if getgenv().Config.ExecuteThisScript ~= "" then rejoinScript = rejoinScript .. "loadstring(game:HttpGet('"..getgenv().Config.ExecuteThisScript.."'))() " end
         rejoinScript = rejoinScript .. "end)"
         pcall(queue_teleport, rejoinScript)
     end
-    
-    GuiService.ErrorMessageChanged:Connect(function()
-        task.wait(1)
-        TeleportService:Teleport(game.PlaceId, lp)
-    end)
+    GuiService.ErrorMessageChanged:Connect(function() task.wait(1) TeleportService:Teleport(game.PlaceId, lp) end)
 end
 
-lp.Idled:Connect(function()
-    if getgenv().Config.AntiAFK then
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
+task.spawn(function()
+    while task.wait(1) do
+        if getgenv().Config.AutoHopServer then
+            task.wait(getgenv().Config.AutoHopDelay)
+            if getgenv().Config.AutoHopServer then HopServer() end
+        end
     end
 end)
+
+task.spawn(function()
+    while task.wait(1) do
+        if getgenv().Config.AutoRejoinTimer then
+            task.wait(getgenv().Config.AutoRejoinTimerDelay)
+            if getgenv().Config.AutoRejoinTimer then TeleportService:Teleport(game.PlaceId, lp) end
+        end
+    end
+end)
+
+lp.Idled:Connect(function() if getgenv().Config.AntiAFK then VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end end)
 
 local function handleCharacterLogic()
     local char = lp.Character
     if char and char:FindFirstChildOfClass("Humanoid") then
         local hum = char:FindFirstChildOfClass("Humanoid")
         local hrp = char:FindFirstChild("HumanoidRootPart")
-
         if getgenv().Config.AntiStuck and hum.Sit then hum.Jump = true end
         if getgenv().Config.AutoJump and hum.FloorMaterial ~= Enum.Material.Air then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
-        
         if getgenv().Config.AntiStuck then
             local state = hum:GetState()
-            if state == Enum.HumanoidStateType.FallingDown or state == Enum.HumanoidStateType.PlatformStanding then
-                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
-            end
+            if state == Enum.HumanoidStateType.FallingDown or state == Enum.HumanoidStateType.PlatformStanding then hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
         end
-
         if getgenv().Config.NoClip then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
+            for _, part in pairs(char:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
         end
-
         if getgenv().Config.Fly and hrp then
             local v = hrp:FindFirstChild("S_Fly") or Instance.new("BodyVelocity", hrp)
-            v.Name = "S_Fly"
-            v.Velocity = Vector3.new(0, 0, 0)
-            v.MaxForce = Vector3.new(0, 9e9, 0)
-        elseif hrp and hrp:FindFirstChild("S_Fly") then
-            hrp.S_Fly:Destroy()
-        end
+            v.Name = "S_Fly"; v.Velocity = Vector3.new(0, 0, 0); v.MaxForce = Vector3.new(0, 9e9, 0)
+        elseif hrp and hrp:FindFirstChild("S_Fly") then hrp.S_Fly:Destroy() end
     end
 end
 
