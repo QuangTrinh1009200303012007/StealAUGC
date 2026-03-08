@@ -15,7 +15,7 @@ local is_file = isfile or function() return false end
 local read_file = readfile or function() return "" end
 local write_file = writefile or function() end
 
--- Chờ game load hoàn toàn trước khi tiếp tục
+-- Đợi game load hoàn toàn
 if not game:IsLoaded() then
     game.Loaded:Wait()
 end
@@ -31,7 +31,7 @@ local function LoadConfig()
         TeleportDelay = 0.5,
         Fly = false,
         NoClip = false,
-        RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinTestUpdate",
+        RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinScriptByQuang",
         ExecuteThisScript = "",
         AutoHopServer = false,
         AutoHopDelay = 300,
@@ -67,14 +67,16 @@ end
 
 LoadConfig()
 
--- Hàm thực thi linh hoạt: hỗ trợ URL hoặc Script thô
+-- Hàm thực thi hỗ trợ cả URL (loadstring) và Code thô (print/loadstring)
 local function UniversalExecute(source)
-    if source == "" then return end
+    if not source or source == "" then return end
     local code = ""
+    -- Kiểm tra nếu là link HTTP
     if source:match("^http") then
         local s, res = pcall(game.HttpGet, game, source)
         if s then code = res end
     else
+        -- Nếu là code thô (ví dụ: print("abc") hoặc loadstring(...))
         code = source
     end
     
@@ -83,7 +85,7 @@ local function UniversalExecute(source)
         if func then 
             task.spawn(func) 
         else 
-            warn("Execute Error: " .. tostring(err)) 
+            warn("Lỗi Script: " .. tostring(err)) 
         end
     end
 end
@@ -216,12 +218,19 @@ local function CreateUI()
     local rRow = Instance.new("Frame", scroll); rRow.Size = UDim2.new(1, -10, 0, 30); rRow.BackgroundTransparency = 1
     local rLab = Instance.new("TextLabel", rRow); rLab.Size = UDim2.new(0.35, 0, 1, 0); rLab.Text = "Rejoin Source:"; rLab.TextColor3 = Color3.fromRGB(200, 200, 200); rLab.BackgroundTransparency = 1; rLab.TextSize = 10; rLab.TextXAlignment = Enum.TextXAlignment.Left
     local rBox = Instance.new("TextBox", rRow); rBox.Position = UDim2.new(0.35, 0, 0, 0); rBox.Size = UDim2.new(0.65, 0, 1, 0); rBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45); rBox.TextColor3 = Color3.fromRGB(255, 255, 255); rBox.Text = getgenv().Config.RejoinSource; rBox.ClearTextOnFocus = true; rBox.TextTruncate = Enum.TextTruncate.AtEnd
-    rBox.FocusLost:Connect(function() getgenv().Config.RejoinSource = rBox.Text; SaveConfig(); rBox.Text = getgenv().Config.RejoinSource end)
+    rBox.FocusLost:Connect(function() getgenv().Config.RejoinSource = rBox.Text; SaveConfig() end)
 
     local eRow = Instance.new("Frame", scroll); eRow.Size = UDim2.new(1, -10, 0, 30); eRow.BackgroundTransparency = 1
     local eLab = Instance.new("TextLabel", eRow); eLab.Size = UDim2.new(0.35, 0, 1, 0); eLab.Text = "Exec Source:"; eLab.TextColor3 = Color3.fromRGB(200, 200, 200); eLab.BackgroundTransparency = 1; eLab.TextSize = 10; eLab.TextXAlignment = Enum.TextXAlignment.Left
     local eBox = Instance.new("TextBox", eRow); eBox.Position = UDim2.new(0.35, 0, 0, 0); eBox.Size = UDim2.new(0.25, 0, 1, 0); eBox.BackgroundColor3 = Color3.fromRGB(45, 45, 45); eBox.TextColor3 = Color3.fromRGB(255, 255, 255); eBox.Text = getgenv().Config.ExecuteThisScript; eBox.ClearTextOnFocus = true; eBox.TextTruncate = Enum.TextTruncate.AtEnd
-    eBox.FocusLost:Connect(function() getgenv().Config.ExecuteThisScript = eBox.Text; SaveConfig(); eBox.Text = getgenv().Config.ExecuteThisScript end)
+    -- Khi mất focus (nhập xong), thực thi ngay lập tức
+    eBox.FocusLost:Connect(function() 
+        getgenv().Config.ExecuteThisScript = eBox.Text
+        SaveConfig()
+        if not getgenv().Config.LoopExecute then
+            UniversalExecute(getgenv().Config.ExecuteThisScript)
+        end
+    end)
     local eLoop = Instance.new("TextButton", eRow); eLoop.Position = UDim2.new(0.6, 5, 0, 0); eLoop.Size = UDim2.new(0.2, -5, 1, 0); eLoop.Font = Enum.Font.GothamBold; eLoop.TextSize = 9
     local function UpdELoop() eLoop.Text = "Loop: " .. (getgenv().Config.LoopExecute and "ON" or "OFF"); eLoop.BackgroundColor3 = getgenv().Config.LoopExecute and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60) end
     eLoop.MouseButton1Click:Connect(function() getgenv().Config.LoopExecute = not getgenv().Config.LoopExecute; SaveConfig(); UpdELoop() end); UpdELoop()
@@ -238,7 +247,7 @@ end
 CreateUI()
 
 ----------------------------------------------------------------
--- LOGIC
+-- LOGIC HỆ THỐNG
 ----------------------------------------------------------------
 if getgenv().Config.AutoRejoin then
     local QueueOnTeleport = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
@@ -259,12 +268,14 @@ if getgenv().Config.AutoRejoin then
     GuiService.ErrorMessageChanged:Connect(function() task.wait(0.5) TeleportService:Teleport(game.PlaceId, lp) end)
 end
 
--- Chạy Execute URL ban đầu (chống trùng khi không loop)
-if not getgenv().Config.LoopExecute and getgenv().Config.ExecuteThisScript ~= "" then
-    UniversalExecute(getgenv().Config.ExecuteThisScript)
-end
+-- Tự động chạy ngay khi load xong nếu có sẵn script (chống trùng bằng cách spawn thread riêng)
+task.spawn(function()
+    if getgenv().Config.ExecuteThisScript ~= "" and not getgenv().Config.LoopExecute then
+        UniversalExecute(getgenv().Config.ExecuteThisScript)
+    end
+end)
 
--- Vòng lặp Execute
+-- Vòng lặp Loop Execute
 task.spawn(function()
     while true do
         if getgenv().Config.LoopExecute and getgenv().Config.ExecuteThisScript ~= "" then
@@ -275,6 +286,7 @@ task.spawn(function()
     end
 end)
 
+-- Auto Hop Server
 task.spawn(function()
     while true do
         if getgenv().Config.AutoHopServer then
@@ -285,6 +297,7 @@ task.spawn(function()
     end
 end)
 
+-- Auto Rejoin Timer
 task.spawn(function()
     while true do
         if getgenv().Config.AutoRejoinTimer then
@@ -321,6 +334,7 @@ end
 if _G.MainLoop then _G.MainLoop:Disconnect() end
 _G.MainLoop = RunService.RenderStepped:Connect(handleCharacterLogic)
 
+-- Vòng lặp Teleport (Xử lý delay 0s)
 task.spawn(function()
     while true do
         if getgenv().Config.TeleportLoop and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
