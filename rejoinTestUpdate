@@ -31,14 +31,14 @@ local function LoadConfig()
         TeleportDelay = 0.5,
         Fly = false,
         NoClip = false,
-        RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinTestUpdate",
+        RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinScriptByQuang",
         ExecuteThisScript = "",
         AutoHopServer = false,
-        AutoHopDelay = 300,
+        AutoHopDelay = 2,
         AutoRejoinTimer = false,
-        AutoRejoinTimerDelay = 300,
+        AutoRejoinTimerDelay = 2,
         LoopExecute = false,
-        LoopExecuteDelay = 5,
+        LoopExecuteDelay = 0,
         UseUserOnly = false
     }
     
