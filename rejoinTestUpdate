@@ -31,7 +31,7 @@ local function LoadConfig()
         TeleportDelay = 0.5,
         Fly = false,
         NoClip = false,
-        RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinScriptByQuang",
+        RejoinSource = "https://raw.githubusercontent.com/choalne02-dotcom/StealAUGC/refs/heads/main/rejoinTestUpdate",
         ExecuteThisScript = "",
         AutoHopServer = false,
         AutoHopDelay = 300,
