@@ -77,7 +77,7 @@ local function N()if f:FindFirstChild("S_ScriptUI")then f.S_ScriptUI:Destroy()en
     lowBtn.Size = UDim2.new(0.4, -5, 1, 0)
     lowBtn.Font = Enum.Font.GothamBold; lowBtn.TextSize = 8;
     local function updateLow()
-        lowBtn.Text = "Lowest Server" .. (getgenv().Config.LowestServer and "ON" or "OFF")
+        lowBtn.Text = "Lowest Server: " .. (getgenv().Config.LowestServer and "ON" or "OFF")
         lowBtn.BackgroundColor3 = getgenv().Config.LowestServer and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(231, 76, 60)
     end
     lowBtn.MouseButton1Click:Connect(function() getgenv().Config.LowestServer = not getgenv().Config.LowestServer x() updateLow() end)
