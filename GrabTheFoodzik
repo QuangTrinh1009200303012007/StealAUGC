@@ -63,14 +63,14 @@ local function createButton(name, text, pos, toggleKey)
 
     btn.MouseButton1Click:Connect(function()
         Toggles[toggleKey] = not Toggles[toggleKey]
-        btn.Text = text .. (Toggles[toggleKey] and ": ON" or ": OFF")
-        btn.BackgroundColor3 = Toggles[toggleKey] and Color3.fromRGB(40, 120, 40) or Color3.fromRGB(60, 60, 60)
+        btn.Text = text .. (Toggles[toggleKey] and ": OFF" or ": ON")
+        btn.BackgroundColor3 = Toggles[toggleKey] and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(40, 120, 40)
     end)
     return btn
 end
 
 createButton("ForceButton", "Force Becoming Foodzik", UDim2.new(0.5, 0, 0, 40), "ForceFoodzik")
-createButton("SkillButton", "XP Skill Farming", UDim2.new(0.5, 0, 0, 90), "XPFarming")
+createButton("SkillButton", "Farm Skill's XP", UDim2.new(0.5, 0, 0, 90), "XPFarming")
 
 -- [VÒNG LẶP 1] Force Becoming Foodzik (Check KHÔNG có phone)
 task.spawn(function()
