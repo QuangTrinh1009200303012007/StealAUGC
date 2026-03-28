@@ -30,7 +30,7 @@ CheckAndKickIfPeople()
 Players.PlayerAdded:Connect(CheckAndKickIfPeople)
 
 -- 2. Thực hiện Teleport đến vị trí chỉ định
-local targetPos = Vector3.new(741, 259, -329)
+local targetPos = Vector3.new(741, 256, -329)
 local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
 
