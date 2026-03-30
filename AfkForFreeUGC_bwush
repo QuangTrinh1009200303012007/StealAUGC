@@ -76,7 +76,7 @@ GuiService.ErrorMessageChanged:Connect(function()
 end)
 
 -- 4. THỰC HIỆN KICK ĐỂ REJOIN (Chỉ thực hiện nếu server an toàn - 1 người)
-task.wait(1.5) -- Đợi một chút để hàm kiểm tra người (CheckServerSecurity) kịp chạy
+task.wait(10.5) -- Đợi một chút để hàm kiểm tra người (CheckServerSecurity) kịp chạy
 if allowRejoin then
     player:Kick("Đang Rejoin về Server Riêng để kích hoạt script...")
 end
