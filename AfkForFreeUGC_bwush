@@ -1,7 +1,6 @@
-if getgenv().AfkForFreeUGC_bwush then return end
-getgenv().AfkForFreeUGC_bwush = true
+if getgenv().AfkForFreeUGC_bwush2 then return end
+getgenv().AfkForFreeUGC_bwush2 = true
 
---===[ GUI DEBUG ĐẾM NGƯỢC ]===--
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DebugCountdown"
 screenGui.ResetOnSpawn = false
@@ -17,11 +16,9 @@ debugLabel.TextScaled = true
 debugLabel.Font = Enum.Font.Code
 debugLabel.Parent = screenGui
 
---===[ QueueOnTeleport Loader ]===--
 local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
 local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC_bwush"
 
--- Biến kiểm soát việc có cho phép Rejoin hay không
 local allowRejoin = true 
 
 pcall(function()
@@ -40,20 +37,18 @@ local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
 
--- 1. Hàm kiểm tra số lượng người và quyết định có Rejoin hay không
 local function CheckServerSecurity()
     if #Players:GetPlayers() >= 2 then
-        allowRejoin = false -- Vô hiệu hóa tính năng tự động quay lại
-        player:Kick("\n[BẢO MẬT CAO]\nPhát hiện server có " .. #Players:GetPlayers() .. " người.\nDừng Rejoin để bảo vệ tài khoản.")
+        allowRejoin = false 
+        player:Kick("\nServer có " .. #Players:GetPlayers() .. " người! Vô server riêng dùm coi 😡")
     end
 end
 
--- Chạy kiểm tra ngay lập tức và khi có người mới vào
 CheckServerSecurity()
 Players.PlayerAdded:Connect(CheckServerSecurity)
 
--- 2. Thực hiện Tween thay vì Teleport (Vận tốc 500)
 task.spawn(function()
+    if not allowRejoin then return end
     local targetPos = Vector3.new(741, 256, -329)
     local character = player.Character or player.CharacterAdded:Wait()
     local hrp = character:WaitForChild("HumanoidRootPart")
@@ -68,11 +63,9 @@ task.spawn(function()
     tween.Completed:Wait()
 end)
 
--- 3. Logic Rejoin
 local function RejoinLogic()
-    -- Chỉ thực hiện Rejoin nếu biến allowRejoin vẫn là true
     if not allowRejoin then 
-        print("Rejoin bị chặn do phát hiện server không an toàn.")
+        print("Rejoin bị chặn do phát hiện Server không an toàn.")
         return 
     end
 
@@ -83,7 +76,6 @@ local function RejoinLogic()
     end
 end
 
--- Tự động gọi Rejoin khi mất kết nối hoặc bị Kick
 GuiService.ErrorMessageChanged:Connect(function()
     if allowRejoin then
         task.wait(0.1)
@@ -91,14 +83,13 @@ GuiService.ErrorMessageChanged:Connect(function()
     end
 end)
 
--- 4. THỰC HIỆN KICK ĐỂ REJOIN VỚI ĐẾM NGƯỢC DEBUG
 local timeLeft = 10.5
 while timeLeft > 0 do
-    debugLabel.Text = string.format("REJOIN TRONG: %.1fS", timeLeft)
+    debugLabel.Text = string.format("Chuẩn bị Kick trong: %.1fS", timeLeft)
     task.wait(0.1)
     timeLeft = timeLeft - 0.1
 end
 
 if allowRejoin then
-    player:Kick("Đang Rejoin về Server Riêng để kích hoạt script...")
+    player:Kick("Đang Rejoin để farm Points tiếp...")
 end
