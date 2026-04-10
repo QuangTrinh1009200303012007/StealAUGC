@@ -1,0 +1,129 @@
+if getgenv().craftAPlushie then return end
+getgenv().craftAPlushie= true
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DebugCountdown"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game:GetService("CoreGui")
+
+-- Debug Label chính (Giữ nguyên style của bạn)
+local debugLabel = Instance.new("TextLabel")
+debugLabel.Size = UDim2.new(0, 450, 0, 120) -- Tăng size để chứa thêm dòng
+debugLabel.Position = UDim2.new(0.5, -225, 0.5, -60)
+debugLabel.BackgroundColor3 = Color3.new(0, 0, 0)
+debugLabel.BackgroundTransparency = 0.5
+debugLabel.TextColor3 = Color3.new(1, 1, 0)
+debugLabel.TextScaled = true
+debugLabel.Font = Enum.Font.Code
+debugLabel.Parent = screenGui
+
+local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/CraftAPlushie_infBox"
+
+local allowRejoin = true 
+
+pcall(function()
+    if QueueOnTeleport then
+        QueueOnTeleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
+    end
+end)
+
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local player = game.Players.LocalPlayer
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- 1. Vòng lặp Fire Remote (1 lần/giây)
+task.spawn(function()
+    while true do
+        ReplicatedStorage.Events.MachinesPurchaseRequest:FireServer("Lucky Box")
+        task.wait(1)
+    end
+end)
+
+local function CheckServerSecurity()
+    if #Players:GetPlayers() >= 2 then
+        allowRejoin = false 
+        player:Kick("\nServer có " .. #Players:GetPlayers() .. " người! Vô server riêng dùm coi 😡")
+    end
+end
+
+CheckServerSecurity()
+Players.PlayerAdded:Connect(CheckServerSecurity)
+
+task.spawn(function()
+    if not allowRejoin then return end
+    local targetPos = Vector3.new(741, 256, -329)
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    local distance = (hrp.Position - targetPos).Magnitude
+    local duration = distance / 500
+
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+    
+    tween:Play()
+    tween.Completed:Wait()
+end)
+
+local function RejoinLogic()
+    if not allowRejoin then 
+        print("Rejoin bị chặn do phát hiện Server không an toàn.")
+        return 
+    end
+
+    if game.PrivateServerId ~= "" then
+        TeleportService:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
+    else
+        TeleportService:Teleport(game.PlaceId, player)
+    end
+end
+
+GuiService.ErrorMessageChanged:Connect(function()
+    if allowRejoin then
+        task.wait(0.1)
+        RejoinLogic()
+    end
+end)
+
+-- 2. Logic cập nhật thông tin Debug (Cash, Stock, Time)
+local timeLeft = 8.5
+task.spawn(function()
+    while timeLeft > 0 do
+        -- Lấy giá trị Cash
+        local cashValue = "0"
+        pcall(function()
+            cashValue = tostring(player.PlayerData.Cash.Value)
+        end)
+
+        -- Lấy giá trị Stock (Dùng string.match để lấy số từ chuỗi "Stock: 4")
+        local stockText = "Stock: 0"
+        pcall(function()
+            local rawStock = player.PlayerGui.MachinesGUI.Frame.Main.Sidebar.SideList["Box_Lucky Box"].StockQuantity.Text
+            local stockNum = string.match(rawStock, "%d+") or "0"
+            stockText = "Stock: " .. stockNum
+        end)
+
+        -- Hiển thị lên màn hình (Giữ nguyên yêu cầu không viết tắt)
+        debugLabel.Text = string.format(
+            "Cash: %s💵\n%s\nChuẩn bị Kick trong: %.1fS", 
+            cashValue, 
+            stockText, 
+            timeLeft
+        )
+        
+        task.wait(0.1)
+        timeLeft = timeLeft - 0.1
+    end
+
+    if allowRejoin then
+        player:Kick("Đang Rejoin để Lucky Box tiếp...")
+    end
+end)
