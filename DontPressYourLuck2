@@ -1,10 +1,32 @@
--- Tự động chạy tính năng Get 100lucks Badges (TP + Fire)
+-- === KHAI BÁO BIẾN VÀ CẤU HÌNH ===
 local Players = game:GetService("Players")
+local GuiService = game:GetService("GuiService")
+local TeleportService = game:GetService("TeleportService")
 local player = Players.LocalPlayer
 
--- Hàm thực hiện logic lấy badge (giữ nguyên 100% tính năng gốc)
+local allowRejoin = true 
+local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/DontPressYourLuck2"
+local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
+
+
+-- Tự động chạy lại script khi đổi server
+pcall(function()
+    if QueueOnTeleport then
+        QueueOnTeleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
+    end
+end)
+
+-- Xử lý khi bị văng hoặc lỗi server
+GuiService.ErrorMessageChanged:Connect(function()
+    if allowRejoin then
+        task.wait()
+        RejoinLogic()
+    end
+end)
+
+-- === LOGIC GET 100LUCKS BADGES (GIỮ NGUYÊN 100%) ===
 local function startMysteryFarm()
-    while true do -- Chạy liên tục không ngừng
+    while true do 
         for i = 1, 999 do
             task.spawn(function()
                 local character = player.Character
@@ -12,7 +34,6 @@ local function startMysteryFarm()
                 local rootPart = character:FindFirstChild("HumanoidRootPart")
                 if not rootPart then return end
 
-                -- Tìm các nút MysteryButton_Round trong Workspace
                 local buttons = {}
                 for _, m in ipairs(workspace:GetChildren()) do
                     if m.Name == "MysteryButton_Round" then
@@ -21,14 +42,12 @@ local function startMysteryFarm()
                     end
                 end
 
-                -- Thực hiện Teleport và Fire Prompt
                 for _, prompt in ipairs(buttons) do
                     if not character or not character:FindFirstChild("Humanoid") or character.Humanoid.Health <= 0 then break end
                     if prompt and prompt.Parent and prompt.Enabled then
                         rootPart.CFrame = prompt.Parent.CFrame
                         task.wait(0.01) 
                         fireproximityprompt(prompt)
-                        
                         local checkStartTime = tick()
                         repeat
                             task.wait() 
@@ -39,9 +58,9 @@ local function startMysteryFarm()
                 end
             end)
         end
-        task.wait(0.05) -- Nghỉ một chút trước khi lặp lại vòng quét mới
+        task.wait(0.05)
     end
 end
 
--- Kích hoạt chạy ngay lập tức
+-- Chạy farm ngay lập tức
 task.spawn(startMysteryFarm)
