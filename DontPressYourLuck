@@ -21,9 +21,7 @@ pcall(function()
     end
 end)
 
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
+
 local GuiService = game:GetService("GuiService")
 local TeleportService = game:GetService("TeleportService")
 
