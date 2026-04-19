@@ -42,7 +42,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- 1. Vòng lặp Fire Remote (1 lần/giây)
 task.spawn(function()
     while true do
-        ReplicatedStorage.Events.MachinesPurchaseRequest:FireServer("Lucky Box")
+        ReplicatedStorage.Events.MachinesPurchaseRequest:FireServer("Legend Box")
         task.wait(1)
     end
 end)
@@ -106,7 +106,7 @@ task.spawn(function()
         -- Lấy giá trị Stock (Dùng string.match để lấy số từ chuỗi "Stock: 4")
         local stockText = "Stock: 0"
         pcall(function()
-            local rawStock = player.PlayerGui.MachinesGUI.Frame.Main.Sidebar.SideList["Box_Lucky Box"].StockQuantity.Text
+            local rawStock = player.PlayerGui.MachinesGUI.Frame.Main.Sidebar.SideList["Box_Legend Box"].StockQuantity.Text
             local stockNum = string.match(rawStock, "%d+") or "0"
             stockText = "Stock: " .. stockNum
         end)
