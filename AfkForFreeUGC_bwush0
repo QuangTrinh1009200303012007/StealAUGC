@@ -1,5 +1,5 @@
-if getgenv().AfkForFreeUGC_bwush1 then return end
-getgenv().AfkForFreeUGC_bwush1 = true
+if getgenv().AfkForFreeUGC_bwush then return end
+getgenv().AfkForFreeUGC_bwush = true
 
 -- // Giao diện Debug
 local screenGui = Instance.new("ScreenGui")
@@ -19,7 +19,7 @@ debugLabel.Parent = screenGui
 
 -- // Biến cấu hình
 local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC_bwush"
+local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC_bwush0"
 local allowRejoin = true 
 
 -- // Hỗ trợ Rejoin khi đổi Server
@@ -62,30 +62,30 @@ task.spawn(function()
         local door2 = workspace:FindFirstChild("Door2")
 
         if stage10 then
-            -- Khi thấy Stage 10: Bay tới Stage 10 (Ưu tiên cao nhất)
+            -- ƯU TIÊN SỐ 1: Stage 10 (Tốc độ 200)
             local distance = (hrp.Position - stage10.Position).Magnitude
-            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 400, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
+            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 200, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
             tween:Play()
             tween.Completed:Wait()
         elseif door2 then
-            -- Nếu chưa có Stage 10: Bay tới Door2 và Spam Fire ProximityPrompt
+            -- NẾU KHÔNG CÓ STAGE 10: Đi Door2 (Tốc độ 50) và SPAM liên tục
             local distance = (hrp.Position - door2.Position).Magnitude
             
-            -- Chỉ Tween nếu ở quá xa Door2 (> 5 studs) để tránh giật lag khi đang spam
-            if distance > 2 then
-                local tween = TweenService:Create(hrp, TweenInfo.new(distance / 400, Enum.EasingStyle.Linear), {CFrame = door2.CFrame})
+            -- Chỉ di chuyển tới Door2 nếu ở xa
+            if distance > 4 then
+                local tween = TweenService:Create(hrp, TweenInfo.new(distance / 50, Enum.EasingStyle.Linear), {CFrame = door2.CFrame})
                 tween:Play()
-                tween.Completed:Wait()
+                -- Lưu ý: Không dùng .Wait() ở đây để vòng lặp có thể check Stage 10 liên tục
             end
 
-            -- Spam tất cả ProximityPrompt có trong Door2
+            -- Spam ProximityPrompt
             for _, v in pairs(door2:GetDescendants()) do
                 if v:IsA("ProximityPrompt") then
                     fireproximityprompt(v)
                 end
             end
         end
-        task.wait(0.2) -- Tần suất quét và spam
+        task.wait(0.2) -- Quét nhanh để nhận diện Stage 10 ngay lập tức
     end
 end)
 
