@@ -1,6 +1,7 @@
 if getgenv().AfkForFreeUGC_bwush1 then return end
 getgenv().AfkForFreeUGC_bwush1 = true
 
+-- // Giao diện Debug
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DebugCountdown"
 screenGui.ResetOnSpawn = false
@@ -16,11 +17,13 @@ debugLabel.TextScaled = true
 debugLabel.Font = Enum.Font.Code
 debugLabel.Parent = screenGui
 
+-- // Biến cấu hình
 local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC_bwush1"
-
+local SCRIPT_URL = "https://raw.githubusercontent.com/QuangTrinh1009200303012007/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC_bwush"
 local allowRejoin = true 
+local firedDoor2 = false -- Biến chặn Door2 chạy nhiều lần
 
+-- // Hỗ trợ Rejoin khi đổi Server
 pcall(function()
     if QueueOnTeleport then
         QueueOnTeleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
@@ -37,6 +40,7 @@ local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
 
+-- // Kiểm tra bảo mật
 local function CheckServerSecurity()
     if #Players:GetPlayers() >= 2 then
         allowRejoin = false 
@@ -47,28 +51,44 @@ end
 CheckServerSecurity()
 Players.PlayerAdded:Connect(CheckServerSecurity)
 
+-- // Logic di chuyển chính
 task.spawn(function()
     if not allowRejoin then return end
-    local targetPos = Vector3.new(739, 257, -324)
-    local character = player.Character or player.CharacterAdded:Wait()
-    local hrp = character:WaitForChild("HumanoidRootPart")
-
-    local distance = (hrp.Position - targetPos).Magnitude
-    local duration = distance / 100
-
-    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
     
-    tween:Play()
-    tween.Completed:Wait()
+    while true do
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        
+        local stage10 = workspace:FindFirstChild("obby") and workspace.obby:FindFirstChild("Stages") and workspace.obby.Stages:FindFirstChild("Stage 10")
+        local door2 = workspace:FindFirstChild("Door2")
+
+        if stage10 then
+            -- Luôn ưu tiên Stage 10 nếu thấy
+            local distance = (hrp.Position - stage10.Position).Magnitude
+            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 500, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
+            tween:Play()
+            tween.Completed:Wait()
+        elseif door2 and not firedDoor2 then
+            -- Nếu không có Stage 10 thì đi Door2 (chỉ chạy 1 lần duy nhất)
+            firedDoor2 = true
+            local distance = (hrp.Position - door2.Position).Magnitude
+            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 100, Enum.EasingStyle.Linear), {CFrame = door2.CFrame})
+            tween:Play()
+            tween.Completed:Wait()
+
+            for _, v in pairs(door2:GetDescendants()) do
+                if v:IsA("ProximityPrompt") then
+                    fireproximityprompt(v)
+                end
+            end
+        end
+        task.wait() -- Quét liên tục
+    end
 end)
 
+-- // Logic Rejoin
 local function RejoinLogic()
-    if not allowRejoin then 
-        print("Rejoin bị chặn do phát hiện Server không an toàn.")
-        return 
-    end
-
+    if not allowRejoin then return end
     if game.PrivateServerId ~= "" then
         TeleportService:TeleportToPrivateServer(game.PlaceId, game.PrivateServerId, {player})
     else
@@ -83,7 +103,8 @@ GuiService.ErrorMessageChanged:Connect(function()
     end
 end)
 
-local timeLeft = 10.1
+-- // Đếm ngược Rejoin
+local timeLeft = 9.1
 while timeLeft > 0 do
     debugLabel.Text = string.format("Chuẩn bị Kick trong: %.1fS", timeLeft)
     task.wait(0.1)
