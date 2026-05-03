@@ -1,7 +1,6 @@
 if getgenv().AfkForFreeUGC_bwush then return end
 getgenv().AfkForFreeUGC_bwush = true
 
--- // Giao diện Debug
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DebugCountdown"
 screenGui.ResetOnSpawn = false
@@ -17,12 +16,10 @@ debugLabel.TextScaled = true
 debugLabel.Font = Enum.Font.Code
 debugLabel.Parent = screenGui
 
--- // Biến cấu hình
 local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
 local SCRIPT_URL = "https://raw.githubusercontent.com/Hi2983488r93993/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC_bwush0"
 local allowRejoin = true 
 
--- // Hỗ trợ Rejoin khi đổi Server
 pcall(function()
     if QueueOnTeleport then
         QueueOnTeleport("loadstring(game:HttpGet('"..SCRIPT_URL.."'))()")
@@ -39,7 +36,6 @@ local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
 
--- // Kiểm tra bảo mật
 local function CheckServerSecurity()
     if #Players:GetPlayers() >= 2 then
         allowRejoin = false 
@@ -50,38 +46,29 @@ end
 CheckServerSecurity()
 Players.PlayerAdded:Connect(CheckServerSecurity)
 
-
--- // Logic di chuyển chính (Tween quay trở lại)
 task.spawn(function()
     if not allowRejoin then return end
     
     while true do
         local character = player.Character or player.CharacterAdded:Wait()
         local hrp = character:WaitForChild("HumanoidRootPart")
+        local humanoid = character:WaitForChild("Humanoid")
         
         local stage10 = workspace:FindFirstChild("obby") and workspace.obby:FindFirstChild("Stages") and workspace.obby.Stages:FindFirstChild("Stage 10")
 
         if stage10 then
-            -- ƯU TIÊN SỐ 1: Stage 10 (Tốc độ 200)
             local distance = (hrp.Position - stage10.Position).Magnitude
-            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 500, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
+            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 200, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
             tween:Play()
             tween.Completed:Wait()
         else
-            -- NẾU KHÔNG CÓ STAGE 10: Tween tới tọa độ mới (Tốc độ 50)
-            local targetPos = Vector3.new(41320, -375, -90)
-            local distance = (hrp.Position - targetPos).Magnitude
-            
-            if distance > 2 then
-                local tween = TweenService:Create(hrp, TweenInfo.new(distance / 500, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
-                tween:Play()
-            end
+            humanoid.Health = 0
+            player.CharacterAdded:Wait()
         end
-        task.wait(0.2) -- Giữ nguyên delay quét nhanh 0.2s
+        task.wait(0.2)
     end
 end)
 
--- // Logic Rejoin
 local function RejoinLogic()
     if not allowRejoin then return end
     if game.PrivateServerId ~= "" then
@@ -98,7 +85,6 @@ GuiService.ErrorMessageChanged:Connect(function()
     end
 end)
 
--- // Đếm ngược Rejoin (Giữ nguyên 8.1s)
 local timeLeft = 8.1
 while timeLeft > 0 do
     debugLabel.Text = string.format("Chuẩn bị Kick trong: %.1fS", timeLeft)
