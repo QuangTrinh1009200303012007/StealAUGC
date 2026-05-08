@@ -56,27 +56,37 @@ end
 CheckServerSecurity()
 Players.PlayerAdded:Connect(CheckServerSecurity)
 
--- Logic theo dõi điểm số tăng đột biến
+-- Logic theo dõi nhân vật chết thì Kick
+task.spawn(function()
+    while task.wait(1) do
+        local char = player.Character
+        if char then
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Died:Connect(function()
+                    if allowRejoin then
+                        player:Kick("Nhân vật đã chết! Đang thực hiện Rejoin để tránh lỗi treo máy...")
+                    end
+                end)
+                -- Break vòng lặp sau khi đã kết nối sự kiện Died cho nhân vật hiện tại
+                -- Sự kiện CharacterAdded sẽ lo phần nhân vật mới nếu có
+                break 
+            end
+        end
+    end
+end)
+
+-- Cập nhật Text hiển thị (Chỉ hiển thị điểm, không thực hiện logic check kick điểm)
 task.spawn(function()
     local leaderstats = player:WaitForChild("leaderstats", 30)
     if leaderstats then
         local pointsValue = leaderstats:WaitForChild("Points", 30)
         if pointsValue then
             local lastPoints = pointsValue.Value
-            
             while task.wait(1) do
                 local currentPoints = pointsValue.Value
                 local difference = currentPoints - lastPoints
-                
                 debugLabel.Text = "Points: " .. tostring(currentPoints) .. " (+" .. tostring(difference) .. ")"
-                
-                -- Nếu điểm tăng đột ngột trên 5000
-                if difference > 5000 then
-                    if allowRejoin then
-                        player:Kick("Phát hiện tăng điểm đột biến (+" .. tostring(difference) .. "). Đang Rejoin...")
-                    end
-                end
-                
                 lastPoints = currentPoints
             end
         end
@@ -108,7 +118,6 @@ task.spawn(function()
             local targetPos = CFrame.new(41338, -71, -21)
             
             -- KIỂM TRA XEM CÓ PROXIMITYPROMPT NÀO Ở GẦN TỌA ĐỘ MỤC TIÊU KHÔNG TRƯỚC KHI BAY
-            -- Điều này giúp tránh bay vào vô định khi map chưa load kịp
             local function IsTargetAreaLoaded()
                 for _, obj in pairs(workspace:GetDescendants()) do
                     if obj:IsA("ProximityPrompt") then
