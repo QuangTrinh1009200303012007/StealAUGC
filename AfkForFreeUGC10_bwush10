@@ -1,6 +1,22 @@
 if getgenv().AfkForFreeUGC_bwush then return end
 getgenv().AfkForFreeUGC_bwush = true
 
+-- Đợi game load hoàn toàn
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- Đợi Model nhân vật load kỹ để tránh lỗi game pause khi di chuyển quá nhanh
+if not player.Character then
+    player.CharacterAdded:Wait()
+end
+local character = player.Character or player.CharacterAdded:Wait()
+character:WaitForChild("HumanoidRootPart")
+character:WaitForChild("Humanoid")
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DebugCountdown"
 screenGui.ResetOnSpawn = false
@@ -17,7 +33,7 @@ debugLabel.Font = Enum.Font.Code
 debugLabel.Parent = screenGui
 
 local QueueOnTeleport = (syn and syn.queue_on_teleport) or queue_on_teleport or (fluxus and fluxus.queue_on_teleport)
-local SCRIPT_URL = "https://raw.githubusercontent.com/Hi2983488r93993/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC10_bwush1"
+local SCRIPT_URL = "https://raw.githubusercontent.com/Hi2983488r93993/RobloxUGC_Scripts/refs/heads/main/AfkForFreeUGC10_bwush10"
 local allowRejoin = true 
 
 pcall(function()
@@ -26,12 +42,6 @@ pcall(function()
     end
 end)
 
-if not game:IsLoaded() then
-    game.Loaded:Wait()
-end
-
-local player = game.Players.LocalPlayer
-local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
@@ -46,6 +56,34 @@ end
 CheckServerSecurity()
 Players.PlayerAdded:Connect(CheckServerSecurity)
 
+-- Logic theo dõi điểm số tăng đột biến
+task.spawn(function()
+    local leaderstats = player:WaitForChild("leaderstats", 30)
+    if leaderstats then
+        local pointsValue = leaderstats:WaitForChild("Points", 30)
+        if pointsValue then
+            local lastPoints = pointsValue.Value
+            
+            while task.wait(0.1) do
+                local currentPoints = pointsValue.Value
+                local difference = currentPoints - lastPoints
+                
+                debugLabel.Text = "Points: " .. tostring(currentPoints) .. " (+" .. tostring(difference) .. ")"
+                
+                -- Nếu điểm tăng đột ngột trên 5000
+                if difference > 5000 then
+                    if allowRejoin then
+                        player:Kick("Phát hiện tăng điểm đột biến (+" .. tostring(difference) .. "). Đang Rejoin...")
+                    end
+                end
+                
+                lastPoints = currentPoints
+            end
+        end
+    end
+end)
+
+-- Logic di chuyển chính
 task.spawn(function()
     if not allowRejoin then return end
     
@@ -53,13 +91,13 @@ task.spawn(function()
         local character = player.Character or player.CharacterAdded:Wait()
         local hrp = character:WaitForChild("HumanoidRootPart")
         
-        -- Kiềm tra Stage 10
+        -- Kiểm tra Stage 10
         local stage10 = workspace:FindFirstChild("obby") and workspace.obby:FindFirstChild("Stages") and workspace.obby.Stages:FindFirstChild("Stage 10")
 
         if stage10 then
             -- LOGIC STAGE 10: Tốc độ 500
             local distance = (hrp.Position - stage10.Position).Magnitude
-            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 500, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
+            local tween = TweenService:Create(hrp, TweenInfo.new(distance / 700, Enum.EasingStyle.Linear), {CFrame = stage10.CFrame})
             tween:Play()
             tween.Completed:Wait()
         else
@@ -121,14 +159,3 @@ GuiService.ErrorMessageChanged:Connect(function()
         RejoinLogic()
     end
 end)
-
-local timeLeft = 7.1
-while timeLeft > 0 do
-    debugLabel.Text = string.format("Chuẩn bị Kick trong: %.1fS", timeLeft)
-    task.wait(0.1)
-    timeLeft = timeLeft - 0.1
-end
-
-if allowRejoin then
-    player:Kick("Đang Rejoin để farm Points tiếp...")
-end
